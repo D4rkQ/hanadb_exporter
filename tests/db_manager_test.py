@@ -41,6 +41,7 @@ class TestDatabaseManager(object):
 
     @mock.patch('hanadb_exporter.db_manager.utils.format_query_result')
     def test_get_tenants_port(self, mock_format_query):
+        self.setup()
         self._db_manager._system_db_connector = mock.Mock()
         self._db_manager._system_db_connector.query.return_value = 'result'
         ports = ['30040', '30041']
@@ -57,7 +58,7 @@ class TestDatabaseManager(object):
 
     @mock.patch('hanadb_exporter.db_manager.hdb_connector.HdbConnector')
     def test_connect_tenants(self, mock_hdb):
-
+        self.setup()
         self._db_manager._get_tenants_port = mock.Mock(return_value=[
             ('db1', 1), ('db2', 2),('db3', 3)])
 
@@ -81,7 +82,7 @@ class TestDatabaseManager(object):
 
     @mock.patch('hanadb_exporter.db_manager.hdb_connector.HdbConnector')
     def test_connect_tenants_userkey(self, mock_hdb):
-
+        self.setup()
         self._db_manager._get_tenants_port = mock.Mock(return_value=[
             ('db1', 1), ('db2', 2),('db3', 3)])
 
@@ -112,7 +113,7 @@ class TestDatabaseManager(object):
     @mock.patch('hanadb_exporter.db_manager.hdb_connector.connectors.base_connector')
     @mock.patch('hanadb_exporter.db_manager.hdb_connector.HdbConnector')
     def test_connect_tenants_error_connecting(self, mock_hdb, mock_connector, mock_warn):
-
+        self.setup()
         self._db_manager._get_tenants_port = mock.Mock(return_value=[
             ('db1', 1), ('db2', 2),('db3', 3)])
 
@@ -144,7 +145,7 @@ class TestDatabaseManager(object):
             'Could not connect to TENANT database %s with error: %s', 'db3', str('err'))
 
     def test_get_connection_data_invalid_data(self):
-
+        self.setup()
         with pytest.raises(ValueError) as err:
             self._db_manager._get_connection_data(None, '', '')
         assert 'Provided user data is not valid. userkey or user/password pair must be provided' \
@@ -162,7 +163,7 @@ class TestDatabaseManager(object):
 
     @mock.patch('hanadb_exporter.db_manager.hdb_connector')
     def test_get_connection_data_not_supported(self, mock_api):
-
+        self.setup()
         mock_api.API = 'pyhdb'
         with pytest.raises(db_manager.UserKeyNotSupportedError) as err:
             self._db_manager._get_connection_data('userkey', '', '')
@@ -173,12 +174,12 @@ class TestDatabaseManager(object):
     @mock.patch('logging.Logger.warn')
     @mock.patch('logging.Logger.info')
     def test_get_connection_data_userkey(self, logger,logger_warn, mock_api):
-
+        self.setup()
         mock_api.API = 'dbapi'
         connection_data = self._db_manager._get_connection_data('userkey', '', '')
         assert connection_data == {
             'userkey': 'userkey', 'user': '', 'password': '', 'RECONNECT': 'FALSE',
-            'encrypt': False, 'sslValidateCertificate': False, 'sslTrustStore': None}
+            'encrypt': False, 'sslValidateCertificate': False, 'sslTrustStore': None, 'currentSchema': ''}
         logger.assert_called_once_with(
             'stored user key %s will be used to connect to the database', 'userkey')
         assert logger_warn.call_count == 0
@@ -187,12 +188,12 @@ class TestDatabaseManager(object):
     @mock.patch('logging.Logger.warn')
     @mock.patch('logging.Logger.info')
     def test_get_connection_data_userkey_warn(self, logger,logger_warn, mock_api):
-
+        self.setup()
         mock_api.API = 'dbapi'
         connection_data = self._db_manager._get_connection_data('userkey', 'user', '')
         assert connection_data == {
             'userkey': 'userkey', 'user': 'user', 'password': '', 'RECONNECT': 'FALSE',
-            'encrypt': False, 'sslValidateCertificate': False, 'sslTrustStore': None}
+            'encrypt': False, 'sslValidateCertificate': False, 'sslTrustStore': None, 'currentSchema': ''}
         logger.assert_called_once_with(
             'stored user key %s will be used to connect to the database', 'userkey')
         logger_warn.assert_called_once_with(
@@ -201,11 +202,12 @@ class TestDatabaseManager(object):
     @mock.patch('hanadb_exporter.db_manager.hdb_connector')
     @mock.patch('logging.Logger.info')
     def test_get_connection_data_pass(self, logger, mock_api):
+        self.setup()
         mock_api.API = 'dbapi'
         connection_data = self._db_manager._get_connection_data(None, 'user', 'pass')
         assert connection_data == {
             'userkey': None, 'user': 'user', 'password': 'pass', 'RECONNECT': 'FALSE',
-            'encrypt': False, 'sslValidateCertificate': False, 'sslTrustStore': None}
+            'encrypt': False, 'sslValidateCertificate': False, 'sslTrustStore': None, 'currentSchema': ''}
         logger.assert_called_once_with(
             'user/password combination will be used to connect to the database')
 
@@ -213,16 +215,33 @@ class TestDatabaseManager(object):
     @mock.patch('hanadb_exporter.db_manager.hdb_connector')
     @mock.patch('logging.Logger.info')
     def test_get_connection_ssl(self, logger, mock_api, mock_where):
+        self.setup()
         mock_where.return_value = 'my.pem'
         mock_api.API = 'dbapi'
         connection_data = self._db_manager._get_connection_data(
-            None, 'user', 'pass', ssl=True, ssl_validate_cert=True)
+            None, 'user', 'pass', ssl=True, ssl_validate_cert=True, currentSchema='SYSTEM')
         assert connection_data == {
             'userkey': None, 'user': 'user', 'password': 'pass', 'RECONNECT': 'FALSE',
-            'encrypt': True, 'sslValidateCertificate': True, 'sslTrustStore': 'my.pem'}
+            'encrypt': True, 'sslValidateCertificate': True, 'sslTrustStore': 'my.pem', 'currentSchema': 'SYSTEM'}
         logger.assert_has_calls([
             mock.call('user/password combination will be used to connect to the database'),
             mock.call('Using ssl connection...')
+        ])
+
+    @mock.patch('certifi.where')
+    @mock.patch('hanadb_exporter.db_manager.hdb_connector')
+    @mock.patch('logging.Logger.info')
+    def test_get_connection_currentSchema(self, logger, mock_api, mock_where):
+        self.setup()
+        mock_where.return_value = 'my.pem'
+        mock_api.API = 'dbapi'
+        connection_data = self._db_manager._get_connection_data(
+            None, 'user', 'pass', currentSchema='SYSTEM')
+        assert connection_data == {
+            'userkey': None, 'user': 'user', 'password': 'pass', 'RECONNECT': 'FALSE',
+            'encrypt': False, 'sslValidateCertificate': False, 'sslTrustStore': None, 'currentSchema': 'SYSTEM'}
+        logger.assert_has_calls([
+            mock.call('user/password combination will be used to connect to the database')
         ])
 
     @mock.patch('hanadb_exporter.db_manager.hdb_connector.connectors.base_connector')
@@ -230,7 +249,7 @@ class TestDatabaseManager(object):
     @mock.patch('time.sleep')
     @mock.patch('time.time')
     def test_start_timeout(self, mock_time, mock_sleep, mock_logger, mock_exception):
-
+        self.setup()
         self._db_manager._get_connection_data = mock.Mock()
         connection_data = {'mock_data': 'data'}
         self._db_manager._get_connection_data.return_value = connection_data
@@ -275,7 +294,7 @@ class TestDatabaseManager(object):
     @mock.patch('logging.Logger.error')
     @mock.patch('time.time')
     def test_start_invalid_key(self, mock_time, mock_logger, mock_exception):
-
+        self.setup()
         self._db_manager._get_connection_data = mock.Mock()
         connection_data = {'mock_data': 'data'}
         self._db_manager._get_connection_data.return_value = connection_data
@@ -309,7 +328,7 @@ class TestDatabaseManager(object):
     @mock.patch('time.sleep')
     @mock.patch('time.time')
     def test_start_correct(self, mock_time, mock_sleep, mock_logger, mock_exception):
-
+        self.setup()
         self._db_manager._get_connection_data = mock.Mock()
         connection_data = {'mock_data': 'data'}
         self._db_manager._get_connection_data.return_value = connection_data
@@ -351,7 +370,7 @@ class TestDatabaseManager(object):
     @mock.patch('time.sleep')
     @mock.patch('time.time')
     def test_start_correct_multitenant(self, mock_time, mock_sleep, mock_logger, mock_exception):
-
+        self.setup()
         self._db_manager._get_connection_data = mock.Mock()
         connection_data = {'mock_data': 'data'}
         self._db_manager._get_connection_data.return_value = connection_data
@@ -390,5 +409,6 @@ class TestDatabaseManager(object):
 
 
     def test_get_connectors(self):
+        self.setup()
         self._db_manager._db_connectors = 'conns'
         assert 'conns' == self._db_manager.get_connectors()

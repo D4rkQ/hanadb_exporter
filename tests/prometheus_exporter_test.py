@@ -56,7 +56,7 @@ class TestSapHanaCollectors(object):
 
     @mock.patch('hanadb_exporter.prometheus_exporter.SapHanaCollector')
     def test_collect(self, mock_collector):
-
+        self.test_init()
         conn1 = mock.Mock()
         conn2 = mock.Mock()
 
@@ -103,12 +103,13 @@ class TestSapHanaCollector(object):
         mock_retrieve_metadata.assert_called_once_with()
 
     def test_metadata_labels(self):
+        self.setup()
         assert ['prd', '00', 'db_name'] == self._collector.metadata_labels
 
     @mock.patch('hanadb_exporter.utils.format_query_result')
     @mock.patch('logging.Logger.info')
     def test_retrieve_metadata(self, mock_logger, mock_format_query):
-
+        self.setup()
         mock_result = mock.Mock()
         self._collector._hdb_connector.query = mock.Mock(return_value=mock_result)
         mock_format_query.return_value = [
@@ -145,7 +146,7 @@ FROM m_database m;"""
     @mock.patch('hanadb_exporter.prometheus_exporter.core')
     @mock.patch('logging.Logger.debug')
     def test_manage_gauge(self, mock_logger, mock_core):
-
+        self.setup()
         mock_gauge_instance = mock.Mock()
         mock_gauge_instance.samples = 'samples'
         mock_core.GaugeMetricFamily = mock.Mock()
@@ -183,7 +184,7 @@ FROM m_database m;"""
     @mock.patch('logging.Logger.warn')
     @mock.patch('logging.Logger.debug')
     def test_manage_gauge_incorrect_label(self, logger_debug, logger_warn, mock_core):
-
+        self.setup()
         mock_gauge_instance = mock.Mock()
         mock_gauge_instance.samples = []
         mock_core.GaugeMetricFamily = mock.Mock()
@@ -218,7 +219,7 @@ FROM m_database m;"""
     @mock.patch('logging.Logger.warn')
     @mock.patch('logging.Logger.debug')
     def test_manage_gauge_incorrect_value(self, logger_debug, logger_warn, mock_core):
-
+        self.setup()
         mock_gauge_instance = mock.Mock()
         mock_gauge_instance.samples = []
         mock_core.GaugeMetricFamily = mock.Mock()
@@ -256,12 +257,14 @@ FROM m_database m;"""
         logger_debug.assert_called_once_with('%s \n', [])
 
     def test_reconnect_connected(self):
+        self.setup()
         self._mock_connector.isconnected.return_value = True
         self._collector.reconnect()
         self._mock_connector.isconnected.assert_called_once_with()
         self._mock_connector.reconnect.assert_not_called()
 
     def test_reconnect_not_connected(self):
+        self.setup()
         self._mock_connector.isconnected.return_value = False
         self._collector.retrieve_metadata = mock.Mock()
         self._collector.reconnect()
@@ -273,6 +276,7 @@ FROM m_database m;"""
     @mock.patch('hanadb_exporter.utils.check_hana_range')
     @mock.patch('logging.Logger.error')
     def test_collect_value_error(self, mock_logger, mock_hana_range, mock_format_query):
+        self.setup()
         """
         Test that when _manage_gauge is called and return ValueError (labels or value)
         are incorrect, that the ValueError is catched by collect() and a error is raised
@@ -300,7 +304,7 @@ FROM m_database m;"""
     @mock.patch('logging.Logger.warning')
     @mock.patch('logging.Logger.info')
     def test_collect(self, mock_logger, mock_logger_warning, mock_hana_range, mock_format_query):
-
+        self.setup()
         self._collector.reconnect = mock.Mock()
         self._collector._manage_gauge = mock.Mock()
 
@@ -379,7 +383,7 @@ FROM m_database m;"""
     @mock.patch('hanadb_exporter.utils.format_query_result')
     @mock.patch('hanadb_exporter.utils.check_hana_range')
     def test_collect_incorrect_type(self, mock_hana_range, mock_format_query):
-
+        self.setup()
         self._collector.reconnect = mock.Mock()
         self._collector._manage_gauge = mock.Mock()
 
@@ -442,7 +446,7 @@ FROM m_database m;"""
     @mock.patch('hanadb_exporter.prometheus_exporter.hdb_connector.connectors.base_connector')
     @mock.patch('logging.Logger.error')
     def test_collect_incorrect_query(self, mock_logger, mock_base_connector, mock_hana_range):
-
+        self.setup()
         self._collector.reconnect = mock.Mock()
         mock_base_connector.QueryError = Exception
 

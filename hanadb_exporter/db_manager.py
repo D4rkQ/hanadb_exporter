@@ -109,13 +109,14 @@ WHERE COORDINATOR_TYPE='MASTER' AND SQL_PORT<>0"""
             'RECONNECT': 'FALSE',
             'encrypt': ssl,
             'sslValidateCertificate': kwargs.get('ssl_validate_cert', False) if ssl else False,
-            'sslTrustStore': trust_store if ssl and CERTIFI_INSTALLED else None
+            'sslTrustStore': trust_store if ssl and CERTIFI_INSTALLED else None,
+            'currentSchema': kwargs.get('currentSchema', '')
         }
 
     def start(self, host, port, **kwargs):
         """
         Start de database manager. This will open a connection with the System database and
-        retrieve the current environemtn tenant databases data
+        retrieve the current environment tenant databases data
 
         Args:
             host (str): Host of the HANA database
@@ -127,13 +128,15 @@ WHERE COORDINATOR_TYPE='MASTER' AND SQL_PORT<>0"""
             timeout (int, opt): Timeout in seconds to connect to the System database
             ssl (bool, opt): Enable SSL connection
             ssl_validate_cert (bool, opt): Validate SSL certificate. Required in HANA cloud
+            currentSchema (str): Setting the current Schema. Required for some CDS based SQL-Views
         """
         connection_data = self._get_connection_data(
             kwargs.get('userkey', None),
             kwargs.get('user', ''),
             kwargs.get('password', ''),
             ssl=kwargs.get('ssl', False),
-            ssl_validate_cert=kwargs.get('ssl_validate_cert', False)
+            ssl_validate_cert=kwargs.get('ssl_validate_cert', False),
+            currentSchema=kwargs.get('currentSchema', '')
         )
 
         current_time = time.time()

@@ -130,6 +130,7 @@ class TestQuery(object):
 
     @mock.patch('hanadb_exporter.prometheus_metrics.Metric')
     def test_parse(self, mock_metric):
+        self.setup()
         mocked_data1 = {'data1': 'value1'}
         mocked_data2 = {'data2': 'value2'}
         query_data = {'metrics': [mocked_data1, mocked_data2], 'enabled': False}
